@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ACEest Fitness &amp; Gym{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="{{ url_for('views.index') }}">
+      ACEest <span>Fitness &amp; Gym</span>
+    </a>
+    <nav>
+      <a href="{{ url_for('views.index') }}">Dashboard</a>
+      <a href="{{ url_for('views.clients') }}">Clients</a>
+      <a href="{{ url_for('views.programs') }}">Programs</a>
+      <a href="{{ url_for('api.health') }}">API Health</a>
+    </nav>
+  </header>
+
+  <main>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flashes">
+          {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer>
+    ACEest Fitness &amp; Gym &middot; Introduction to DevOps &middot; Assignment&nbsp;1 &middot; Phase&nbsp;1
+  </footer>
+</body>
+</html>
