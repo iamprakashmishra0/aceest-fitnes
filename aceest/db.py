@@ -99,7 +99,7 @@ def _seed(db: sqlite3.Connection) -> None:
     if count:
         return
 
-    db.execute(
+    cursor = db.execute(
         """
         INSERT INTO clients
             (name, age, height, weight, program, calories,
@@ -119,9 +119,10 @@ def _seed(db: sqlite3.Connection) -> None:
             "2026-12-31",
         ),
     )
+    client_id = cursor.lastrowid
     db.execute(
-        "INSERT INTO progress (client_id, week, adherence) VALUES "
-        "(1, 'Week 01 - 2026', 70), (1, 'Week 02 - 2026', 85)"
+        "INSERT INTO progress (client_id, week, adherence) VALUES (?, ?, ?), (?, ?, ?)",
+        (client_id, "Week 01 - 2026", 70, client_id, "Week 02 - 2026", 85),
     )
     db.commit()
 
