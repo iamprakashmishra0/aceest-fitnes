@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Programs · ACEest Fitness{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>Training Programs</h1>
+  <p>Calorie factors are used to estimate daily intake as <code>weight × factor</code>.</p>
+</section>
+
+<section class="stats programs">
+  {% for name, program in programs.items() %}
+  <div class="stat-card program">
+    <span class="stat-value">{{ program.factor }}</span>
+    <span class="stat-label">{{ name }}</span>
+    <p class="muted">{{ program.desc }}</p>
+    <span class="pill">{{ program.focus }}</span>
+  </div>
+  {% endfor %}
+</section>
+{% endblock %}

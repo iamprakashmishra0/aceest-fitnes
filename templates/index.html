@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · ACEest Fitness{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>ACEest Functional Fitness</h1>
+  <p>Client management, program catalogue and performance tracking for the modern gym.</p>
+</section>
+
+<section class="stats">
+  <div class="stat-card">
+    <span class="stat-value">{{ stats.clients }}</span>
+    <span class="stat-label">Clients</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-value">{{ stats.workouts }}</span>
+    <span class="stat-label">Workouts logged</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-value">{{ stats.avg_adherence }}%</span>
+    <span class="stat-label">Avg. adherence</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-value">{{ programs|length }}</span>
+    <span class="stat-label">Programs</span>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Client Roster</h2>
+    <a class="btn" href="{{ url_for('views.clients') }}">Manage clients</a>
+  </div>
+  {% if clients %}
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Program</th><th>Calories</th><th>Status</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for client in clients %}
+      <tr>
+        <td>{{ client.name }}</td>
+        <td>{{ client.program or '—' }}</td>
+        <td>{{ client.calories or '—' }}</td>
+        <td><span class="pill">{{ client.membership_status or 'Active' }}</span></td>
+        <td><a href="{{ url_for('views.client_detail', client_id=client.id) }}">View</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No clients yet. <a href="{{ url_for('views.clients') }}">Add your first client</a>.</p>
+  {% endif %}
+</section>
+{% endblock %}
