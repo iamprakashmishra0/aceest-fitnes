@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% block title %}{{ client.name }} · ACEest Fitness{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ client.name }}</h1>
+    <p class="muted">{{ client.program or 'No program assigned' }}</p>
+  </div>
+  <form method="post" action="{{ url_for('views.delete_client', client_id=client.id) }}"
+        onsubmit="return confirm('Delete {{ client.name }} and all related records?');">
+    <button class="btn danger" type="submit">Delete client</button>
+  </form>
+</div>
+
+<section class="stats">
+  <div class="stat-card"><span class="stat-value">{{ client.calories or '—' }}</span><span class="stat-label">kcal / day</span></div>
+  <div class="stat-card"><span class="stat-value">{{ progress_summary.avg_adherence }}%</span><span class="stat-label">Avg. adherence</span></div>
+  <div class="stat-card"><span class="stat-value">{{ progress_summary.weeks }}</span><span class="stat-label">Weeks logged</span></div>
+  <div class="stat-card">
+    <span class="stat-value">{{ bmi.bmi if bmi else '—' }}</span>
+    <span class="stat-label">BMI {{ '(' ~ bmi.category ~ ')' if bmi else '' }}</span>
+  </div>
+</section>
+
+<div class="grid two-col">
+  <section class="panel">
+    <h2>Profile</h2>
+    <form method="post" action="{{ url_for('views.update_client', client_id=client.id) }}" class="form">
+      <label>Name <input type="text" name="name" value="{{ client.name }}" required></label>
+      <div class="row">
+        <label>Age <input type="number" name="age" value="{{ client.age or '' }}"></label>
+        <label>Height (cm) <input type="number" step="0.1" name="height" value="{{ client.height or '' }}"></label>
+      </div>
+      <div class="row">
+        <label>Weight (kg) <input type="number" step="0.1" name="weight" value="{{ client.weight or '' }}"></label>
+        <label>Program
+          <select name="program">
+            {% for name in programs %}
+            <option value="{{ name }}" {% if name == client.program %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      <div class="row">
+        <label>Target weight (kg) <input type="number" step="0.1" name="target_weight" value="{{ client.target_weight or '' }}"></label>
+        <label>Target adherence % <input type="number" name="target_adherence" value="{{ client.target_adherence or '' }}"></label>
+      </div>
+      <div class="row">
+        <label>Membership status
+          <select name="membership_status">
+            {% for status in ['Active', 'Paused', 'Expired'] %}
+            <option {% if status == client.membership_status %}selected{% endif %}>{{ status }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>Membership end <input type="date" name="membership_end" value="{{ client.membership_end or '' }}"></label>
+      </div>
+      <button class="btn primary" type="submit">Save changes</button>
+    </form>
+    {% if bmi %}
+    <p class="note"><strong>BMI {{ bmi.bmi }} ({{ bmi.category }}).</strong> {{ bmi.risk }}</p>
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <h2>Weekly Adherence</h2>
+    <form method="post" action="{{ url_for('views.add_progress', client_id=client.id) }}" class="form inline">
+      <label>Week <input type="text" name="week" placeholder="Week 10 - 2026"></label>
+      <label>Adherence % <input type="number" name="adherence" min="0" max="100" value="0"></label>
+      <button class="btn" type="submit">Log</button>
+    </form>
+    {% if progress %}
+    <table>
+      <thead><tr><th>Week</th><th>Adherence</th></tr></thead>
+      <tbody>
+        {% for entry in progress %}
+        <tr><td>{{ entry.week }}</td><td>{{ entry.adherence }}%</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="muted">No adherence entries yet.</p>
+    {% endif %}
+  </section>
+</div>
+
+<div class="grid two-col">
+  <section class="panel">
+    <h2>Log Workout</h2>
+    <form method="post" action="{{ url_for('views.add_workout', client_id=client.id) }}" class="form">
+      <div class="row">
+        <label>Date <input type="date" name="date"></label>
+        <label>Type
+          <select name="workout_type">
+            {% for type in ['Strength', 'Hypertrophy', 'Conditioning', 'Mixed', 'Mobility'] %}
+            <option>{{ type }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      <div class="row">
+        <label>Duration (min) <input type="number" name="duration_min" min="0" value="60"></label>
+        <label>Notes <input type="text" name="notes"></label>
+      </div>
+      <fieldset>
+        <legend>Optional exercise</legend>
+        <div class="row">
+          <label>Exercise <input type="text" name="exercise_name"></label>
+          <label>Sets <input type="number" name="sets" min="0" value="3"></label>
+        </div>
+        <div class="row">
+          <label>Reps <input type="number" name="reps" min="0" value="10"></label>
+          <label>Weight (kg) <input type="number" step="0.1" name="exercise_weight" min="0"></label>
+        </div>
+      </fieldset>
+      <button class="btn primary" type="submit">Log workout</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>Workout History</h2>
+    {% if workouts %}
+    <table>
+      <thead><tr><th>Date</th><th>Type</th><th>Min</th><th>Exercises</th></tr></thead>
+      <tbody>
+        {% for workout in workouts %}
+        <tr>
+          <td>{{ workout.date }}</td>
+          <td>{{ workout.workout_type }}</td>
+          <td>{{ workout.duration_min or '—' }}</td>
+          <td>
+            {% for exercise in workout.exercises %}
+              {{ exercise.name }} ({{ exercise.sets }}×{{ exercise.reps }}){% if not loop.last %}, {% endif %}
+            {% else %}—{% endfor %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="muted">No workouts logged yet.</p>
+    {% endif %}
+  </section>
+</div>
+
+<div class="grid two-col">
+  <section class="panel">
+    <h2>Body Metrics</h2>
+    <form method="post" action="{{ url_for('views.add_metrics', client_id=client.id) }}" class="form">
+      <div class="row">
+        <label>Date <input type="date" name="date"></label>
+        <label>Weight (kg) <input type="number" step="0.1" name="weight"></label>
+      </div>
+      <div class="row">
+        <label>Waist (cm) <input type="number" step="0.1" name="waist"></label>
+        <label>Body-fat % <input type="number" step="0.1" name="bodyfat"></label>
+      </div>
+      <button class="btn primary" type="submit">Log metrics</button>
+    </form>
+    {% if metrics %}
+    <table>
+      <thead><tr><th>Date</th><th>Weight</th><th>Waist</th><th>Body-fat</th></tr></thead>
+      <tbody>
+        {% for metric in metrics %}
+        <tr>
+          <td>{{ metric.date }}</td>
+          <td>{{ metric.weight or '—' }}</td>
+          <td>{{ metric.waist or '—' }}</td>
+          <td>{{ metric.bodyfat or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="muted">No body metrics recorded yet.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <h2>AI Program Generator</h2>
+    <form method="post" action="{{ url_for('views.generate_program', client_id=client.id) }}" class="form inline">
+      <label>Experience
+        <select name="experience">
+          <option value="beginner">Beginner</option>
+          <option value="intermediate">Intermediate</option>
+          <option value="advanced">Advanced</option>
+        </select>
+      </label>
+      <button class="btn primary" type="submit">Generate plan</button>
+    </form>
+    {% if plan %}
+      <p class="note">Focus: <strong>{{ plan.focus }}</strong> · Level: {{ plan.experience }}</p>
+      {% for day in plan.schedule %}
+      <div class="day">
+        <h3>{{ day.day }}</h3>
+        <ul>
+          {% for exercise in day.exercises %}
+          <li>{{ exercise.name }} — {{ exercise.sets }}×{{ exercise.reps }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="muted">Generate a tailored weekly plan based on this client's program.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
