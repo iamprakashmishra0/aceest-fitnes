@@ -521,23 +521,7 @@ both environments — guaranteeing consistency from local development to release
 
 ---
 
-## 14. How this supports the next phases
-
-- **Phase 2 — Version Control:** ✅ completed — repository initialised, branched
-  and documented (see section 9).
-- **Phase 3 — Pytest:** ✅ completed — 88 tests, 100% coverage, runnable with a
-  single `pytest` command (see section 10 and `docs/testing.md`).
-- **Phase 4 — Docker:** ✅ completed — optimised multi-stage image, non-root,
-  Gunicorn + healthcheck (see section 11 and `docs/docker.md`).
-- **Phase 5 — Jenkins BUILD:** ✅ completed — declarative pipeline, Dockerised
-  controller, clean-build + coverage gate (see section 12 and `docs/jenkins.md`).
-- **Phase 6 — GitHub Actions:** ✅ completed — Build & Lint, Docker Assembly and
-  containerised Tests on every push/PR (see section 13 and
-  `docs/github-actions.md`).
-
----
-
-## 15. Troubleshooting
+## 14. Troubleshooting
 
 | Problem | Fix |
 | --- | --- |
