@@ -7,6 +7,12 @@ __pycache__/
 venv/
 env/
 
+# Test & coverage artefacts
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
 # Databases & generated artifacts
 *.db
 *.sqlite
