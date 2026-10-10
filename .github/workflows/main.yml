@@ -1,0 +1,138 @@
+# ---------------------------------------------------------------------------
+# ACEest Fitness & Gym — GitHub Actions CI pipeline (Phase 6)
+#
+# Triggered on every push and pull request. Runs three stages:
+#   1. Build & Lint        -> byte-compile the app and run flake8
+#   2. Docker Image Assembly -> build the production container image
+#   3. Automated Testing   -> run the Pytest suite INSIDE the container,
+#                             enforcing a 90% coverage gate
+# ---------------------------------------------------------------------------
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ------------------------------------------------------------------------- #
+  # Stage 1 — Build & Lint
+  # ------------------------------------------------------------------------- #
+  build-and-lint:
+    name: Build & Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Compile (syntax check)
+        run: python -m compileall -q aceest app.py config.py
+
+      - name: Lint (flake8)
+        run: flake8 aceest app.py config.py tests
+
+  # ------------------------------------------------------------------------- #
+  # Stage 2 — Docker Image Assembly
+  # ------------------------------------------------------------------------- #
+  docker-image:
+    name: Docker Image Assembly
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: build-and-lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build production image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: aceest-fitness:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test the image
+        run: |
+          docker run -d --name aceest-ci aceest-fitness:ci
+          ok=0
+          for i in $(seq 1 30); do
+            if docker exec aceest-ci python -c \
+              "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/api/health')"; then
+              ok=1; echo "Health check passed"; break
+            fi
+            sleep 1
+          done
+          docker rm -f aceest-ci
+          test "$ok" -eq 1
+
+  # ------------------------------------------------------------------------- #
+  # Stage 3 — Automated Testing (inside the containerised environment)
+  # ------------------------------------------------------------------------- #
+  test-in-container:
+    name: Automated Testing (container)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: build-and-lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build test image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: test
+          push: false
+          load: true
+          tags: aceest-fitness:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Pytest inside the container
+        run: |
+          mkdir -p reports
+          docker run --rm -v "$PWD/reports:/app/reports" aceest-fitness:test \
+            python -m pytest \
+              --junitxml=reports/junit.xml \
+              --cov=aceest \
+              --cov-report=term-missing \
+              --cov-report=xml:reports/coverage.xml \
+              --cov-report=html:reports/htmlcov \
+              --cov-fail-under=90
+
+      - name: Upload test & coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: reports/
+          if-no-files-found: ignore

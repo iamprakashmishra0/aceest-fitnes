@@ -31,14 +31,17 @@ RUN pip install --upgrade pip && \
     pip install -r requirements.txt gunicorn==23.0.0
 
 
-# ---- Stage 2: test (CI executes the suite here) ---------------------------
+# ---- Stage 2: test image (CI runs the suite inside this) ------------------
 FROM builder AS test
 
 COPY requirements-dev.txt ./
 RUN pip install -r requirements-dev.txt
 
 COPY . .
-RUN pytest
+
+# No test execution here: this stage produces a reproducible image that the
+# CI pipeline runs on demand, e.g.
+#   docker run --rm aceest-fitness:test python -m pytest
 
 
 # ---- Stage 3: runtime ------------------------------------------------------

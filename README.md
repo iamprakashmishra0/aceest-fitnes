@@ -1,14 +1,22 @@
-# ACEest Fitness & Gym — Flask Application (Phase 1)
+# ACEest Fitness & Gym — Flask CI/CD Project
+
+![CI](https://github.com/iamprakashmishra0/aceest-fitnes/actions/workflows/main.yml/badge.svg)
+![Python](https://img.shields.io/badge/python-3.12-blue)
+![Tests](https://img.shields.io/badge/tests-88%20passed-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)
+![Docker](https://img.shields.io/badge/docker-ready-blue)
 
 A modular **Flask web application** for fitness and gym management, built for
 **Introduction to DevOps — Assignment 1 (CSIZG514/SEZG514)**.
 
-This repository contains the **Phase 1** deliverable only:
-**Application Development & Modularization**. The original ACEest desktop logic
-(Tkinter baseline scripts) has been refactored into a clean, layered, web-ready
-Flask application with an HTML UI and a JSON API. The remaining assignment
-phases (version control, Pytest, Docker, Jenkins, GitHub Actions) build on top
-of this foundation.
+The repository implements all six assignment phases:
+
+1. **Application Development & Modularization** — layered Flask app with an HTML UI and a JSON API.
+2. **Version Control** — Git Flow, Conventional Commits and release tags.
+3. **Unit Testing** — Pytest suite (88 tests, 100% coverage).
+4. **Containerization** — multi-stage, slim, non-root Docker image.
+5. **Jenkins BUILD** — declarative pipeline and a Dockerised controller.
+6. **GitHub Actions** — Build & Lint → Docker Assembly → containerised tests.
 
 ---
 
@@ -84,7 +92,12 @@ aceest-fitness/
 │   ├── git-workflow.md        # VCS strategy (Phase 2)
 │   ├── testing.md             # Testing guide (Phase 3)
 │   ├── docker.md              # Docker guide (Phase 4)
-│   └── jenkins.md             # Jenkins install + setup guide (Phase 5)
+│   ├── jenkins.md             # Jenkins install + setup guide (Phase 5)
+│   └── github-actions.md      # GitHub Actions CI guide (Phase 6)
+│
+├── .github/
+│   └── workflows/
+│       └── main.yml           # GitHub Actions CI pipeline (Phase 6)
 │
 ├── jenkins/                   # Jenkins controller (Phase 5)
 │   ├── Dockerfile             # Jenkins LTS + Python + Docker CLI + plugins
@@ -94,9 +107,10 @@ aceest-fitness/
 │
 ├── Dockerfile                 # Multi-stage container build (Phase 4)
 ├── .dockerignore              # Build-context exclusions
+├── .flake8                    # Lint configuration (Phase 6)
 ├── Jenkinsfile                # Declarative CI pipeline (Phase 5)
 ├── pytest.ini                 # Pytest + coverage configuration
-├── requirements-dev.txt       # Test-only dependencies
+├── requirements-dev.txt       # Test + lint dependencies
 └── requirements.txt           # Runtime dependencies
 ```
 
@@ -398,8 +412,8 @@ The application ships as a portable Docker image built from a **multi-stage
 ### 11.2 Build
 
 ```bash
-docker build -t aceest-fitness:latest .          # production image
-docker build --target test -t aceest-fitness:test .  # runs Pytest at build time
+docker build -t aceest-fitness:latest .              # production image
+docker build --target test -t aceest-fitness:test .  # test image (app + tooling)
 ```
 
 ### 11.3 Run
@@ -416,7 +430,8 @@ Then open <http://localhost:5000/> or check `curl http://localhost:5000/api/heal
 ### 11.4 Run the test suite inside the container
 
 ```bash
-docker run --rm aceest-fitness:test pytest -q   # 88 passed, 100% coverage
+docker build --target test -t aceest-fitness:test .
+docker run --rm aceest-fitness:test python -m pytest -q   # 88 passed, 100% coverage
 ```
 
 ---
@@ -461,7 +476,52 @@ manual job setup are documented in [`docs/jenkins.md`](docs/jenkins.md).
 
 ---
 
-## 13. How this supports the next phases
+## 13. GitHub Actions (Phase 6)
+
+A fully automated CI pipeline lives in
+[`.github/workflows/main.yml`](.github/workflows/main.yml) and runs on every
+push and pull request. The detailed guide is
+[`docs/github-actions.md`](docs/github-actions.md).
+
+### 13.1 Pipeline stages
+
+| Job | Purpose |
+| --- | --- |
+| **Build & Lint** | Install deps, `compileall` syntax check, `flake8` lint. |
+| **Docker Image Assembly** | Build the production image (BuildKit + GHA cache) and smoke-test `/api/health`. |
+| **Automated Testing (container)** | Run Pytest **inside** the test image, enforce 90% coverage, upload reports. |
+
+```
+build-and-lint ──┬──► docker-image
+                 └──► test-in-container
+```
+
+### 13.2 Triggers
+
+- every `push` to `main` / `develop`,
+- every `pull_request` targeting `main` / `develop`,
+- manual runs via **Actions → CI → Run workflow**.
+
+No secrets are required. Test/coverage reports are published as the
+`test-reports` workflow artefact.
+
+### 13.3 Jenkins + GitHub Actions integration
+
+The two systems are complementary and share the same artefacts
+(`Dockerfile`, `requirements*.txt`, `pytest.ini`, `.flake8`), so they enforce an
+identical quality gate (`pytest --cov-fail-under=90`):
+
+- **GitHub Actions** gives fast, per-commit and pull-request feedback entirely
+  on GitHub's infrastructure.
+- **Jenkins** performs the authoritative clean **BUILD** on a controlled
+  self-hosted server once work reaches `main`.
+
+A commit therefore passes the same build, lint and containerised test checks in
+both environments — guaranteeing consistency from local development to release.
+
+---
+
+## 14. How this supports the next phases
 
 - **Phase 2 — Version Control:** ✅ completed — repository initialised, branched
   and documented (see section 9).
@@ -471,25 +531,28 @@ manual job setup are documented in [`docs/jenkins.md`](docs/jenkins.md).
   Gunicorn + healthcheck (see section 11 and `docs/docker.md`).
 - **Phase 5 — Jenkins BUILD:** ✅ completed — declarative pipeline, Dockerised
   controller, clean-build + coverage gate (see section 12 and `docs/jenkins.md`).
-- **Phase 6 — GitHub Actions:** the `/api/health` endpoint, factory-based app
-  and Dockerfile make automated build/test/container stages straightforward.
+- **Phase 6 — GitHub Actions:** ✅ completed — Build & Lint, Docker Assembly and
+  containerised Tests on every push/PR (see section 13 and
+  `docs/github-actions.md`).
 
 ---
 
-## 14. Troubleshooting
+## 15. Troubleshooting
 
 | Problem | Fix |
 | --- | --- |
 | `ModuleNotFoundError: No module named 'flask'` | Activate the venv and run `pip install -r requirements.txt`. |
 | `pytest: command not found` | Install the test extras: `pip install -r requirements-dev.txt`. |
+| `flake8` reports errors | Fix the reported lines; tuning lives in `.flake8`. |
 | `Address already in use` on port 5000 | Run on another port: `flask --app app run --port 8080` (or `-p 8080:5000` with Docker). |
 | `docker: command not found` | Install Docker Engine and ensure the daemon is running. |
 | Image builds but the app is unhealthy | Check `docker logs aceest`; ensure port `5000` is free and `/data` is writable. |
 | Jenkins job can't find the `Jenkinsfile` | Set Script Path to `Jenkinsfile` and branch spec to `*/main`. |
 | Jenkins can't use Docker in a build | Mount `/var/run/docker.sock` and grant the user Docker access (see `docs/jenkins.md`). |
+| GitHub Actions workflow missing | Ensure `.github/workflows/main.yml` is on the default branch. |
 | Database looks out of date | Delete `aceest_fitness.db` and restart to recreate/seed it. |
 | Templates not found | Run the app from the project root containing `templates/`. |
 
 ---
 
-*ACEest Fitness & Gym — Introduction to DevOps, Assignment 1, Phases 1–5.*
+*ACEest Fitness & Gym — Introduction to DevOps, Assignment 1, Phases 1–6.*

@@ -186,4 +186,3 @@ def test_progress_workout_metrics_missing_client_return_404(client):
     assert client.post("/api/clients/9999/workouts", json={}).status_code == 404
     assert client.get("/api/clients/9999/metrics").status_code == 404
     assert client.post("/api/clients/9999/metrics", json={}).status_code == 404
-

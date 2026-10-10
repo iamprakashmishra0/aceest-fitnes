@@ -150,4 +150,3 @@ def test_missing_client_views_return_404(client):
     assert client.post("/clients/9999/workouts", data={}).status_code == 404
     assert client.post("/clients/9999/metrics", data={}).status_code == 404
     assert client.post("/clients/9999/generate", data={}).status_code == 404
-

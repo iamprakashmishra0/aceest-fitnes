@@ -28,7 +28,7 @@ leak into the final image:
 | Stage | Purpose | Contains |
 | --- | --- | --- |
 | `builder` | Install runtime deps into an isolated virtualenv (`/opt/venv`) | Flask, Gunicorn |
-| `test` | Add test tooling and **run the Pytest suite at build time** (CI) | builder + pytest, coverage |
+| `test` | Add test tooling so CI can run the suite **inside** this image | builder + pytest, coverage, flake8 |
 | `runtime` | Final, slim, non-root production image | venv + app code only |
 
 Because dependencies are installed in a dedicated virtualenv in the `builder`
@@ -52,12 +52,13 @@ From the project root (the folder containing the `Dockerfile`):
 # Production image (default target)
 docker build -t aceest-fitness:latest .
 
-# CI/test image (runs the Pytest suite during the build)
+# CI/test image (application + test tooling)
 docker build --target test -t aceest-fitness:test .
 ```
 
-A failed test makes `--target test` fail with a non-zero exit code, which is
-exactly what the CI pipeline relies on as a quality gate.
+Running the suite in the test image (`docker run ... python -m pytest`)
+returns a non-zero exit code on failure, which is exactly what the CI pipeline
+relies on as a quality gate.
 
 ---
 
@@ -103,16 +104,28 @@ docker stop aceest && docker rm aceest
 ## 6. Running the tests inside the container
 
 The assignment requires the Pytest suite to execute **inside the containerized
-environment**:
+environment**. Build the dedicated test image, then run the suite in it:
 
 ```bash
-# Option A — tests run during the image build
+# Build the test image (dependencies + application + tests)
 docker build --target test -t aceest-fitness:test .
 
-# Option B — run the suite on demand
-docker run --rm aceest-fitness:test pytest -q
+# Execute Pytest inside the container
+docker run --rm aceest-fitness:test python -m pytest -q
 # 88 passed  (100% coverage)
 ```
+
+To collect reports on the host, mount a volume for the output directory:
+
+```bash
+mkdir -p reports
+docker run --rm -v "$PWD/reports:/app/reports" aceest-fitness:test \
+  python -m pytest --junitxml=reports/junit.xml \
+    --cov=aceest --cov-report=xml:reports/coverage.xml --cov-fail-under=90
+```
+
+This is exactly what the GitHub Actions "Automated Testing" job does
+(see [`github-actions.md`](github-actions.md)).
 
 ---
 
