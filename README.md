@@ -82,8 +82,11 @@ aceest-fitness/
 │
 ├── docs/
 │   ├── git-workflow.md        # VCS strategy (Phase 2)
-│   └── testing.md             # Testing guide (Phase 3)
+│   ├── testing.md             # Testing guide (Phase 3)
+│   └── docker.md              # Docker guide (Phase 4)
 │
+├── Dockerfile                 # Multi-stage container build (Phase 4)
+├── .dockerignore              # Build-context exclusions
 ├── pytest.ini                 # Pytest + coverage configuration
 ├── requirements-dev.txt       # Test-only dependencies
 └── requirements.txt           # Runtime dependencies
@@ -98,6 +101,7 @@ aceest-fitness/
 - Python 3.10 or newer
 - `pip` and `venv` (bundled with Python)
 - Git (optional, for version control)
+- Docker Engine 20.10+ (optional, for the containerized workflow — Phase 4)
 
 Verify your Python version:
 
@@ -368,31 +372,74 @@ SQLite file, and the `app` fixture empties every table before each test.
 
 ---
 
-## 11. How this supports the next phases
+## 11. Docker (Phase 4)
+
+The application ships as a portable Docker image built from a **multi-stage
+`Dockerfile`**. The full guide lives in [`docs/docker.md`](docs/docker.md).
+
+### 11.1 What the image provides
+
+- `python:3.12-slim-bookworm` base, pinned for reproducible builds.
+- Multi-stage build (`builder` → `test`, `runtime`) so build/test tooling never
+  reaches the final image.
+- **Gunicorn** as the production WSGI server (never the Flask dev server).
+- Runs as the unprivileged **`app`** user (non-root).
+- `HEALTHCHECK` against `/api/health` and SQLite data persisted in `/data`.
+- Production image size ≈ **224 MB**.
+
+### 11.2 Build
+
+```bash
+docker build -t aceest-fitness:latest .          # production image
+docker build --target test -t aceest-fitness:test .  # runs Pytest at build time
+```
+
+### 11.3 Run
+
+```bash
+docker run -d --name aceest -p 5000:5000 \
+  -v aceest-data:/data \
+  -e SECRET_KEY="replace-with-a-strong-secret" \
+  aceest-fitness:latest
+```
+
+Then open <http://localhost:5000/> or check `curl http://localhost:5000/api/health`.
+
+### 11.4 Run the test suite inside the container
+
+```bash
+docker run --rm aceest-fitness:test pytest -q   # 88 passed, 100% coverage
+```
+
+---
+
+## 12. How this supports the next phases
 
 - **Phase 2 — Version Control:** ✅ completed — repository initialised, branched
   and documented (see section 9).
 - **Phase 3 — Pytest:** ✅ completed — 88 tests, 100% coverage, runnable with a
   single `pytest` command (see section 10 and `docs/testing.md`).
-- **Phase 4 — Docker:** the single lightweight dependency (Flask) makes the
-  image small; `app.py` can be served by a WSGI server such as Gunicorn.
-- **Phase 5 — Jenkins BUILD:** Jenkins can `pip install -r requirements-dev.txt`
-  and run the app/test suite on a clean checkout.
-- **Phase 6 — GitHub Actions:** the `/api/health` endpoint and the factory-based
-  app make automated build/test/container stages straightforward.
+- **Phase 4 — Docker:** ✅ completed — optimised multi-stage image, non-root,
+  Gunicorn + healthcheck (see section 11 and `docs/docker.md`).
+- **Phase 5 — Jenkins BUILD:** Jenkins can build the Docker image and run the
+  test suite on a clean checkout as the BUILD quality gate.
+- **Phase 6 — GitHub Actions:** the `/api/health` endpoint, factory-based app
+  and Dockerfile make automated build/test/container stages straightforward.
 
 ---
 
-## 12. Troubleshooting
+## 13. Troubleshooting
 
 | Problem | Fix |
 | --- | --- |
 | `ModuleNotFoundError: No module named 'flask'` | Activate the venv and run `pip install -r requirements.txt`. |
 | `pytest: command not found` | Install the test extras: `pip install -r requirements-dev.txt`. |
-| `Address already in use` on port 5000 | Run on another port: `flask --app app run --port 8080`. |
+| `Address already in use` on port 5000 | Run on another port: `flask --app app run --port 8080` (or `-p 8080:5000` with Docker). |
+| `docker: command not found` | Install Docker Engine and ensure the daemon is running. |
+| Image builds but the app is unhealthy | Check `docker logs aceest`; ensure port `5000` is free and `/data` is writable. |
 | Database looks out of date | Delete `aceest_fitness.db` and restart to recreate/seed it. |
 | Templates not found | Run the app from the project root containing `templates/`. |
 
 ---
 
-*ACEest Fitness & Gym — Introduction to DevOps, Assignment 1, Phases 1–3.*
+*ACEest Fitness & Gym — Introduction to DevOps, Assignment 1, Phases 1–4.*
