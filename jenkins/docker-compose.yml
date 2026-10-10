@@ -1,0 +1,34 @@
+# ---------------------------------------------------------------------------
+# Run the ACEest Jenkins controller locally (Phase 5).
+#
+#   docker-compose -f jenkins/docker-compose.yml up -d --build
+#   open http://localhost:8080   (login: admin / admin)
+#
+# The host Docker socket is mounted so the pipeline can build and run the
+# application image. Change JENKINS_ADMIN_PASSWORD before exposing this host.
+# ---------------------------------------------------------------------------
+version: "3.8"
+
+services:
+  jenkins:
+    build: .
+    image: aceest-jenkins:latest
+    container_name: aceest-jenkins
+    # Runs as root so it can use the host's Docker socket. For a hardened
+    # setup, add a user whose GID matches the host "docker" group instead.
+    user: root
+    ports:
+      - "8080:8080"    # Jenkins web UI
+      - "50000:50000"  # inbound agents
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./casc:/casc:ro
+    environment:
+      - CASC_JENKINS_CONFIG=/casc/jenkins.yaml
+      - JENKINS_ADMIN_PASSWORD=admin
+      - GITHUB_REPO_URL=https://github.com/iamprakashmishra0/aceest-fitnes.git
+    restart: unless-stopped
+
+volumes:
+  jenkins_home:
