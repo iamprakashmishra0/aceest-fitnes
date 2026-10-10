@@ -118,7 +118,7 @@ In the UI: **Manage Jenkins → Plugins → Available plugins**, then install:
 
 `Pipeline`, `Git`, `Docker Pipeline`, `JUnit`, `HTML Publisher`,
 `GitHub`, `Pipeline: Stage View`, `Job DSL`, `Configuration as Code`,
-`Workspace Cleanup`.
+`Timestamper`, `Workspace Cleanup`.
 
 ---
 
