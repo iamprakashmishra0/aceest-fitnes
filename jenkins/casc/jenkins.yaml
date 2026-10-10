@@ -1,0 +1,53 @@
+# ---------------------------------------------------------------------------
+# Jenkins Configuration as Code (JCasC) for ACEest Fitness & Gym (Phase 5).
+#
+# Configures the admin user and pre-creates the "aceest-fitness" pipeline job
+# that runs the Jenkinsfile in this repository. Values are injected from the
+# container environment (see jenkins/docker-compose.yml).
+# ---------------------------------------------------------------------------
+jenkins:
+  systemMessage: "ACEest Fitness & Gym — Jenkins CI (Phase 5)"
+  numExecutors: 2
+  mode: NORMAL
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "admin"
+          password: "${JENKINS_ADMIN_PASSWORD}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+  globalNodeProperties:
+    - envVars:
+        env:
+          - key: GITHUB_REPO_URL
+            value: "${GITHUB_REPO_URL}"
+
+unclassified:
+  location:
+    url: "http://localhost:8080/"
+
+jobs:
+  - script: |
+      pipelineJob('aceest-fitness') {
+        description('ACEest Fitness & Gym — pulls the latest code from GitHub and runs a clean BUILD, test and container smoke test (Phase 5).')
+        // Poll GitHub for new commits every ~5 minutes (H = load balanced).
+        triggers {
+          scm('H/5 * * * *')
+        }
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote {
+                  url('${GITHUB_REPO_URL}')
+                }
+                branches('*/main')
+              }
+            }
+            scriptPath('Jenkinsfile')
+            lightweight(true)
+          }
+        }
+      }

@@ -19,6 +19,11 @@ htmlcov/
 *.sqlite3
 *_report.pdf
 
+# CI/CD generated reports
+reports/
+.jenkins-venv/
+.ci-venv/
+
 # Environment
 .env
 
