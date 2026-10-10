@@ -83,10 +83,18 @@ aceest-fitness/
 ├── docs/
 │   ├── git-workflow.md        # VCS strategy (Phase 2)
 │   ├── testing.md             # Testing guide (Phase 3)
-│   └── docker.md              # Docker guide (Phase 4)
+│   ├── docker.md              # Docker guide (Phase 4)
+│   └── jenkins.md             # Jenkins install + setup guide (Phase 5)
+│
+├── jenkins/                   # Jenkins controller (Phase 5)
+│   ├── Dockerfile             # Jenkins LTS + Python + Docker CLI + plugins
+│   ├── plugins.txt            # Required Jenkins plugins
+│   ├── docker-compose.yml     # One-command local Jenkins
+│   └── casc/jenkins.yaml      # Configuration as Code (admin + job)
 │
 ├── Dockerfile                 # Multi-stage container build (Phase 4)
 ├── .dockerignore              # Build-context exclusions
+├── Jenkinsfile                # Declarative CI pipeline (Phase 5)
 ├── pytest.ini                 # Pytest + coverage configuration
 ├── requirements-dev.txt       # Test-only dependencies
 └── requirements.txt           # Runtime dependencies
@@ -413,7 +421,47 @@ docker run --rm aceest-fitness:test pytest -q   # 88 passed, 100% coverage
 
 ---
 
-## 12. How this supports the next phases
+## 12. Jenkins BUILD (Phase 5)
+
+Jenkins owns the primary **BUILD** phase: it pulls the latest code from GitHub
+and performs a clean build of the environment in a controlled sandbox. The full
+install and setup guide is in [`docs/jenkins.md`](docs/jenkins.md).
+
+### 12.1 Pipeline stages
+
+The declarative [`Jenkinsfile`](Jenkinsfile) runs:
+
+| Stage | Purpose |
+| --- | --- |
+| Checkout | Pull the latest revision from `origin/main`. |
+| Build | Clean virtualenv, install dependencies, byte-compile, `pip check`. |
+| Test | Pytest with a **90% coverage gate**; publishes JUnit + coverage. |
+| Docker Build | Build `aceest-fitness:<build-number>`. |
+| Smoke Test | Run the image and probe `/api/health`. |
+
+### 12.2 Install & run Jenkins (Docker, recommended)
+
+```bash
+# from the repository root
+docker-compose -f jenkins/docker-compose.yml up -d --build
+# open http://localhost:8080  (admin / admin)
+```
+
+The image bundles Python, the Docker CLI and the required plugins, and
+Configuration-as-Code automatically creates the `aceest-fitness` pipeline job.
+
+A native Ubuntu/Debian installation (Java 17 + the Jenkins apt repository) and
+manual job setup are documented in [`docs/jenkins.md`](docs/jenkins.md).
+
+### 12.3 Trigger a build
+
+- **Build Now** in the UI, or
+- **Poll SCM** (`H/5 * * * *`), or
+- a **GitHub webhook** to `http://<jenkins-host>:8080/github-webhook/`.
+
+---
+
+## 13. How this supports the next phases
 
 - **Phase 2 — Version Control:** ✅ completed — repository initialised, branched
   and documented (see section 9).
@@ -421,14 +469,14 @@ docker run --rm aceest-fitness:test pytest -q   # 88 passed, 100% coverage
   single `pytest` command (see section 10 and `docs/testing.md`).
 - **Phase 4 — Docker:** ✅ completed — optimised multi-stage image, non-root,
   Gunicorn + healthcheck (see section 11 and `docs/docker.md`).
-- **Phase 5 — Jenkins BUILD:** Jenkins can build the Docker image and run the
-  test suite on a clean checkout as the BUILD quality gate.
+- **Phase 5 — Jenkins BUILD:** ✅ completed — declarative pipeline, Dockerised
+  controller, clean-build + coverage gate (see section 12 and `docs/jenkins.md`).
 - **Phase 6 — GitHub Actions:** the `/api/health` endpoint, factory-based app
   and Dockerfile make automated build/test/container stages straightforward.
 
 ---
 
-## 13. Troubleshooting
+## 14. Troubleshooting
 
 | Problem | Fix |
 | --- | --- |
@@ -437,9 +485,11 @@ docker run --rm aceest-fitness:test pytest -q   # 88 passed, 100% coverage
 | `Address already in use` on port 5000 | Run on another port: `flask --app app run --port 8080` (or `-p 8080:5000` with Docker). |
 | `docker: command not found` | Install Docker Engine and ensure the daemon is running. |
 | Image builds but the app is unhealthy | Check `docker logs aceest`; ensure port `5000` is free and `/data` is writable. |
+| Jenkins job can't find the `Jenkinsfile` | Set Script Path to `Jenkinsfile` and branch spec to `*/main`. |
+| Jenkins can't use Docker in a build | Mount `/var/run/docker.sock` and grant the user Docker access (see `docs/jenkins.md`). |
 | Database looks out of date | Delete `aceest_fitness.db` and restart to recreate/seed it. |
 | Templates not found | Run the app from the project root containing `templates/`. |
 
 ---
 
-*ACEest Fitness & Gym — Introduction to DevOps, Assignment 1, Phases 1–4.*
+*ACEest Fitness & Gym — Introduction to DevOps, Assignment 1, Phases 1–5.*
