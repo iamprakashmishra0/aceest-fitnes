@@ -68,8 +68,25 @@ aceest-fitness/
 │   ├── client_detail.html     # Profile, progress, workouts, metrics, generator
 │   └── programs.html          # Program catalogue
 │
-└── static/
-    └── css/style.css          # Dark + gold theme
+├── static/
+│   └── css/style.css          # Dark + gold theme
+│
+├── tests/                     # Pytest suite (Phase 3)
+│   ├── conftest.py            # Shared fixtures (app, client, sample_client)
+│   ├── test_services.py       # Business-logic unit tests
+│   ├── test_utils.py          # Parsing-helper unit tests
+│   ├── test_db.py             # Schema + seeding tests
+│   ├── test_repository.py     # Data-access integration tests
+│   ├── test_api.py            # JSON API integration tests
+│   └── test_views.py          # HTML route integration tests
+│
+├── docs/
+│   ├── git-workflow.md        # VCS strategy (Phase 2)
+│   └── testing.md             # Testing guide (Phase 3)
+│
+├── pytest.ini                 # Pytest + coverage configuration
+├── requirements-dev.txt       # Test-only dependencies
+└── requirements.txt           # Runtime dependencies
 ```
 
 ---
@@ -241,7 +258,7 @@ tested, replaced or containerised independently:
 | Layer | File(s) | Responsibility |
 | --- | --- | --- |
 | **Application factory** | `aceest/__init__.py` | Builds the app and wires blueprints; supports per-environment config (critical for CI/CD). |
-| **Configuration** | `config.py` | Dev/Test/Prod settings; test config uses in-memory SQLite. |
+| **Configuration** | `config.py` | Dev/Test/Prod settings; test config uses an isolated temporary SQLite file. |
 | **Persistence** | `aceest/db.py` | Single place for connections + schema. |
 | **Repository** | `aceest/repository.py` | All SQL queries behind plain functions returning dicts. |
 | **Domain logic** | `aceest/services.py` | Pure, framework-free functions (calories, BMI, generator). |
@@ -251,8 +268,8 @@ tested, replaced or containerised independently:
 
 Because the business logic in `services.py` has **no database or Flask
 dependency**, it can be unit-tested with Pytest in isolation (Phase 3) and the
-test config uses an in-memory database (`TestingConfig`) so pipeline runs never
-touch real data.
+test config uses an isolated temporary database (`TestingConfig`) so test runs
+never touch real data.
 
 ---
 
@@ -291,30 +308,91 @@ gh repo create aceest-fitness --public --source=. --remote=origin --push
 
 ---
 
-## 10. How this supports the next phases
+## 10. Testing (Phase 3)
+
+The project uses **Pytest** with **pytest-cov** for unit and integration testing.
+The full guide lives in [`docs/testing.md`](docs/testing.md); the essentials are
+below.
+
+### 10.1 Install test dependencies
+
+```bash
+pip install -r requirements-dev.txt
+```
+
+### 10.2 Run the tests manually
+
+From the project root:
+
+```bash
+pytest
+```
+
+`pytest.ini` configures the test path and the coverage report, so no extra flags
+are needed. Useful variations:
+
+```bash
+pytest -v                              # verbose output
+pytest tests/test_services.py          # a single file
+pytest tests/test_api.py::test_health  # a single test
+pytest -k "bmi or calorie"             # keyword filter
+```
+
+Expected result: **88 tests passing with 100% coverage** of the `aceest` package.
+
+```
+TOTAL                         377      0   100%
+============================== 88 passed in 6.18s ===============================
+```
+
+### 10.3 Coverage reports
+
+```bash
+pytest --cov=aceest --cov-report=html     # browsable htmlcov/index.html
+pytest --cov=aceest --cov-fail-under=90   # enforce a coverage gate (CI)
+```
+
+### 10.4 Test layout
+
+| File | Validates |
+| --- | --- |
+| `tests/test_services.py` | Calories, BMI, program generator (pure logic). |
+| `tests/test_utils.py` | Parsing/type-coercion helpers. |
+| `tests/test_db.py` | Schema creation and idempotent seeding. |
+| `tests/test_repository.py` | Client/progress/workout/metrics CRUD and cascades. |
+| `tests/test_api.py` | JSON endpoints, status codes and error handling. |
+| `tests/test_views.py` | HTML pages, forms, redirects and `404`s. |
+
+Tests are fully isolated: `config.TestingConfig` points at a unique temporary
+SQLite file, and the `app` fixture empties every table before each test.
+
+---
+
+## 11. How this supports the next phases
 
 - **Phase 2 — Version Control:** ✅ completed — repository initialised, branched
   and documented (see section 9).
-- **Phase 3 — Pytest:** write unit tests against `services.py` and integration
-  tests against the API using `TestingConfig` (in-memory DB).
+- **Phase 3 — Pytest:** ✅ completed — 88 tests, 100% coverage, runnable with a
+  single `pytest` command (see section 10 and `docs/testing.md`).
 - **Phase 4 — Docker:** the single lightweight dependency (Flask) makes the
   image small; `app.py` can be served by a WSGI server such as Gunicorn.
-- **Phase 5 — Jenkins BUILD:** Jenkins can `pip install -r requirements.txt`
+- **Phase 5 — Jenkins BUILD:** Jenkins can `pip install -r requirements-dev.txt`
   and run the app/test suite on a clean checkout.
 - **Phase 6 — GitHub Actions:** the `/api/health` endpoint and the factory-based
   app make automated build/test/container stages straightforward.
 
 ---
 
-## 11. Troubleshooting
+## 12. Troubleshooting
 
 | Problem | Fix |
 | --- | --- |
 | `ModuleNotFoundError: No module named 'flask'` | Activate the venv and run `pip install -r requirements.txt`. |
+| `pytest: command not found` | Install the test extras: `pip install -r requirements-dev.txt`. |
 | `Address already in use` on port 5000 | Run on another port: `flask --app app run --port 8080`. |
 | Database looks out of date | Delete `aceest_fitness.db` and restart to recreate/seed it. |
 | Templates not found | Run the app from the project root containing `templates/`. |
 
 ---
 
-*ACEest Fitness & Gym — Introduction to DevOps, Assignment 1, Phases 1–2.*
+*ACEest Fitness & Gym — Introduction to DevOps, Assignment 1, Phases 1–3.*
