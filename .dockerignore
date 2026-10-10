@@ -1,0 +1,41 @@
+# --------------------------------------------------------------------------
+# Docker build context exclusions for ACEest Fitness & Gym.
+# Keeping the context small speeds up builds and keeps secrets/artefacts
+# out of the image.
+# --------------------------------------------------------------------------
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Python bytecode / virtualenvs
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Test & coverage artefacts (tests/ is intentionally kept for the test stage)
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Documentation & editor/OS cruft (not needed at runtime)
+docs/
+*.md
+.vscode/
+.idea/
+.DS_Store
+
+# Docker metadata
+Dockerfile
+.dockerignore
