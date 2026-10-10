@@ -146,7 +146,9 @@ def generate_program(
 
     rng = rng or random
     experience = (experience or "beginner").lower()
-    preset = _EXPERIENCE_PRESETS.get(experience, _EXPERIENCE_PRESETS["beginner"])
+    if experience not in _EXPERIENCE_PRESETS:
+        experience = "beginner"
+    preset = _EXPERIENCE_PRESETS[experience]
 
     focus = _focus_for(program_name)
     pool = EXERCISE_POOL[focus]
