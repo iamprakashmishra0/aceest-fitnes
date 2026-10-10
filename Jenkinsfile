@@ -101,15 +101,22 @@ pipeline {
                 sh '''
                     set -eu
                     docker rm -f aceest-ci >/dev/null 2>&1 || true
-                    docker run -d --name aceest-ci -p 5000:5000 "${IMAGE_NAME}:${IMAGE_TAG}"
+                    docker run -d --name aceest-ci "${IMAGE_NAME}:${IMAGE_TAG}"
+                    ok=0
                     for i in $(seq 1 30); do
-                        if curl -fsS http://127.0.0.1:5000/api/health >/dev/null 2>&1; then
+                        if docker exec aceest-ci python -c \
+                            "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/api/health')" 2>/dev/null; then
+                            ok=1
+                            echo "Health check passed"
                             break
                         fi
                         sleep 1
                     done
-                    curl -fsS http://127.0.0.1:5000/api/health
                     docker rm -f aceest-ci >/dev/null 2>&1 || true
+                    if [ "${ok}" -ne 1 ]; then
+                        echo "Smoke test FAILED: /api/health did not become available"
+                        exit 1
+                    fi
                 '''
             }
         }

@@ -20,7 +20,7 @@ RUN apt-get update \
         curl \
         ca-certificates \
         git \
-        docker.io \
+        docker-cli \
  && rm -rf /var/lib/apt/lists/*
 
 # Install the pipeline plugins into the image's reference directory; the
